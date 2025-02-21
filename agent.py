@@ -15,7 +15,7 @@ from livekit.plugins import cartesia, openai, deepgram, silero, turn_detector
 from models import tts, fake_llm
 from RealtimeTTS import CoquiEngine
 
-load_dotenv(dotenv_path=".env.local")
+load_dotenv(dotenv_path="env.local")
 logger = logging.getLogger("voice-agent")
 
 
