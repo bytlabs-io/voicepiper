@@ -1,0 +1,4 @@
+.env.local
+venv/
+.DS_Store
+models/v2.0.2
