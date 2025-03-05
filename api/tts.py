@@ -34,8 +34,9 @@ from livekit.agents import (
 from typing import Literal
 import logging
 from RealtimeTTS import TextToAudioStream, CoquiEngine
+import requests
 
-
+SERVER_URL = f"https://870c-34-73-159-234.ngrok-free.app/tts"
 
 logger = logging.getLogger("livekit.plugins.konkonsa")
 
@@ -158,67 +159,41 @@ class ChunkedStream(tts.ChunkedStream):
         segment_id: str | None = None,
         conn_options: APIConnectOptions = DEFAULT_API_CONNECT_OPTIONS,
     ) -> None:
-        self.audio_queue = Queue()
-        self.engine = CoquiEngine()
-        self.stream = TextToAudioStream(
-            self.engine, muted=True, on_audio_stream_stop=self.on_audio_stream_stop
-        )
         super().__init__(tts=tts, input_text=input_text, conn_options=conn_options)
         self._opts = opts
         self._segment_id = segment_id or utils.shortuuid()
         self.blocksize = 512
-        self.speaking = False
-
-    def on_audio_chunk(self, chunk):
-        self.audio_queue.put(chunk)
-
-    def on_audio_stream_stop(self):
-        self.audio_queue.put(None)
-        self.speaking = False
-
-    def play_text_to_speech(self, text):
-        self.speaking = True
-        self.stream.feed(text)
-        logging.debug(f"Playing audio for text: {text}")
-        print(f'Synthesizing: "{text}"')
-        self.stream.play_async(on_audio_chunk=self.on_audio_chunk, muted=True)
-       
 
     async def _run(self) -> None:
         stream = utils.audio.AudioByteStream(sample_rate=24000, num_channels=1)
         request_id = utils.shortuuid()
-        if play_text_to_speech_semaphore.acquire(blocking=False):
-            try:
-                threading.Thread(
-                    target=self.play_text_to_speech,
-                    args=(self._input_text,),
-                    daemon=True,
-                ).start()
-                while True:
-                    chunk = self.audio_queue.get()
-                    if chunk is None:
-                        print("Terminating stream")
-                        break
-                    for frame in stream.write(chunk):
-                        self._event_ch.send_nowait(
-                            tts.SynthesizedAudio(
-                                request_id=request_id,
-                                frame=frame,
-                                segment_id=self._segment_id,
-                            )
+        try:
+            response = requests.get(SERVER_URL, params={"text": self.input_text}, stream=True, timeout=10)
+            response.raise_for_status()  # Raises an HTTPError if the response status is 4xx/5xx
+
+            # Read data as it becomes available
+            for chunk in response.iter_content(chunk_size=None):
+                if chunk is None:
+                    print("Terminating stream")
+                    break
+                for frame in stream.write(chunk):
+                    self._event_ch.send_nowait(
+                        tts.SynthesizedAudio(
+                            request_id=request_id,
+                            frame=frame,
+                            segment_id=self._segment_id,
                         )
-            except asyncio.TimeoutError as e:
-                raise APITimeoutError() from e
-            except aiohttp.ClientResponseError as e:
-                raise APIStatusError(
-                    message=e.message,
-                    status_code=e.status,
-                    body=None,
-                ) from e
-            except Exception as e:
-                raise APIConnectionError() from e
-            finally:
-                play_text_to_speech_semaphore.release()
+                    )
+        except asyncio.TimeoutError as e:
+            raise APITimeoutError() from e
+        except aiohttp.ClientResponseError as e:
+            raise APIStatusError(
+                message=e.message,
+                status_code=e.status,
+                body=None,
+            ) from e
+        except Exception as e:
+            raise APIConnectionError() from e
 
 
 # def create_wave_header_for_engine(engine):

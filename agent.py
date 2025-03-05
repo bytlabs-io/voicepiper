@@ -7,15 +7,13 @@ from livekit.agents import (
     JobProcess,
     WorkerOptions,
     cli,
-    llm,
     metrics,
 )
 from livekit.agents.pipeline import VoicePipelineAgent
-from livekit.plugins import cartesia, openai, deepgram, silero, turn_detector
-from models import tts, fake_llm
-from RealtimeTTS import CoquiEngine
+from livekit.plugins import silero, turn_detector, deepgram
+from api import llm, tts, stt
 
-load_dotenv(dotenv_path="env.local")
+load_dotenv(dotenv_path=".env.local")
 logger = logging.getLogger("voice-agent")
 
 
@@ -47,10 +45,10 @@ async def entrypoint(ctx: JobContext):
     # https://docs.livekit.io/agents/plugins
     agent = VoicePipelineAgent(
         vad=ctx.proc.userdata["vad"],
-        stt=deepgram.STT(),
-        llm=fake_llm.LLM(),
-        tts=tts.TTS(),
-        turn_detector=turn_detector.EOUModel(),
+        stt=stt.STT(),
+        llm=llm.LLM(),
+        tts=deepgram.TTS(),
+        # turn_detector=turn_detector.EOUModel(),
         # minimum delay for endpointing, used when turn detector believes the user is done with their turn
         min_endpointing_delay=0.5,
         # maximum delay for endpointing, used when turn detector does not believe the user is done with their turn
@@ -68,7 +66,7 @@ async def entrypoint(ctx: JobContext):
     agent.start(ctx.room, participant)
 
     # The agent should be polite and greet the user when it joins :)
-    await agent.say("Hey, how can I help you today?", allow_interruptions=True)
+    # await agent.say("Hey, how can I help you today?", allow_interruptions=True)
 
 
 if __name__ == "__main__":

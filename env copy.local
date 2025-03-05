@@ -1,6 +1,0 @@
-CARTESIA_API_KEY="<To use other providers, press Enter for now and edit .env.local>"
-DEEPGRAM_API_KEY="a9bc7775e350d8bac14f7259332cc59edbec8747"
-LIVEKIT_API_KEY="APIqUqous6hAtsY"
-LIVEKIT_API_SECRET="sEE977PAmZGQ2ZVG3S84PFhivk5sfvEE3ienql0aEaQ"
-LIVEKIT_URL="wss://konkonsa-p8x3br7o.livekit.cloud"
-OPENAI_API_KEY="<To use other providers, press Enter for now and edit .env.local>"
